@@ -1,0 +1,124 @@
+#install nfs-server on the master node. -- Ubuntu Linux
+sudo apt update
+sudo apt install nfs-kernel-server -y
+sudo mkdir -p /srv/nfs/kubedata/
+sudo chown -R nobody:nogroup /srv/nfs/kubedata/
+sudo chmod 777 /srv/nfs/kubedata/
+sudo vi /etc/exports
+/srv/nfs/kubedata/ *(rw,sync,no_subtree_check)
+sudo exportfs -a
+sudo systemctl restart nfs-kernel-server
+sudo ufw status
+
+
+#install nfs-client on the worker node.
+
+#Mark a StorageClass as default
+
+kubectl patch storageclass managed-nfs-server -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
+
+
+
+
+# install cloudnativepg
+
+kubectl apply -f   https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.19/releases/cnpg-1.19.1.yaml
+
+
+
+#secret for postgres
+
+echo -n 'grafana' | base64
+Z3JhZmFuYQo=
+echo -n 'mysecretpassword' | base64
+bXlzZWNyZXRwYXNzd29yZA==
+
+#install krew
+(
+  set -x; cd "$(mktemp -d)" &&
+  OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
+  ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')" &&
+  KREW="krew-${OS}_${ARCH}" &&
+  curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" &&
+  tar zxvf "${KREW}.tar.gz" &&
+  ./"${KREW}" install krew
+)
+
+export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+
+#install cnpg plugin
+kubectl krew install cnpg
+
+#check cluster status
+kubectl cnpg status grafana-pg
+kubectl get clusters
+
+
+kubectl get cluster grafana-pg -o yaml
+
+kubectl get pods --show-labels
+
+kubectl logs grafana-pg-1
+
+
+kubectl get svc
+
+kubectl get endpoints
+
+kubectl get secrets
+
+#check sync sql data
+kubectl exec -ti grafana-pg-1 -- psql
+
+create table t1(a1 int);
+
+# change cluster config
+kubectl edit cluster grafana-pg
+
+
+# test high availability 
+kubectl get pv,pvc
+
+kubectl delete pvc grafana-pg-2 --wait=false
+
+kubectl delete pod grafana-pg-2 --wait=false
+
+# add/remove postgres instance
+
+kubectl scale cluster grafana-pg --replicas=4
+
+#delete clsuter
+kubectl delete cluster grafana-pg --wait=false
+
+# delete pv
+kubectl delete pv <pv-name> # have to delete manually
+
+kubectl exec -n postgresql-client -ti postgresql-client sh
+
+# install postgres client
+https://github.com/andreswebs-public-images/postgresql-client
+
+
+
+# encode / decode base64
+
+    #1: Encoding text data
+        echo  'app' | base64
+    #2: Decoding text data
+        echo 'cGFzc3dvcmQ=' | base64 --decode
+
+
+# connect postgres through kubernetes service(IP)
+
+vagrant@k8s-m-1:~$ kubectl get svc
+NAME             TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)    AGE
+grafana-pg-any   ClusterIP   10.104.254.101   <none>        5432/TCP   19m
+grafana-pg-r     ClusterIP   10.97.127.187    <none>        5432/TCP   19m
+grafana-pg-ro    ClusterIP   10.101.64.221    <none>        5432/TCP   19m
+grafana-pg-rw    ClusterIP   10.110.223.239   <none>        5432/TCP   19m
+kubernetes       ClusterIP   10.96.0.1        <none>        443/TCP    101d
+
+psql -h 10.110.223.239 -d app -U app
+
+psql -h grafana-pg-rw -d app -U app
+
