@@ -12,8 +12,13 @@ sudo ufw status
 
 
 #install nfs-client on the worker node.
+sudo apt install nfs-common
 
 #Mark a StorageClass as default
+
+kubectl apply -f class.yaml
+kubectl apply -f rbac.yaml
+kubectl apply -f deployment.yaml # need to updated nfs server ip
 
 kubectl patch storageclass managed-nfs-server -p '{"metadata": {"annotations":{"storageclass.kubernetes.io/is-default-class":"true"}}}'
 
@@ -25,6 +30,7 @@ kubectl patch storageclass managed-nfs-server -p '{"metadata": {"annotations":{"
 kubectl apply -f   https://raw.githubusercontent.com/cloudnative-pg/cloudnative-pg/release-1.19/releases/cnpg-1.19.1.yaml
 
 
+https://adex.ltd/dynamic-nfs-provisioning-for-persistence-storage-in-kubernetes
 
 #secret for postgres
 
